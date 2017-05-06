@@ -9,4 +9,6 @@
 #define SN_ASSERT(expr) 
 #endif /* DEBUG */
 
+#define SN_PACKED __attribute__((__packed__))
+
 #endif /* SOCKSNUG_UTIL_H */
