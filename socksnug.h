@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <netinet/in.h>
 
-#include "sn_util.h"
+#include "socksnug_util.h"
 
 /* SOCKS5 Connection Message
  * ver    : version of the protocol (0x05)
@@ -50,46 +50,8 @@ typedef struct SN_PACKED _sn_socket {
   //in_port_t         port[];
 } sn_socket;
 
-int sn_socket_sizeof(const sn_socket* sn_sock) {
-  SN_ASSERT(sn_sock != NULL);
-
-  int size = 0;
-
-  switch ( sn_sock->atyp ) {
-  case SN_ATYP_IPV6 :
-    size = sizeof(uint8_t) + sizeof(struct in6_addr) + sizeof(in_port_t);
-    break;
-  case SN_ATYP_IPV4 :
-    size = sizeof(uint8_t) + sizeof(struct in_addr) + sizeof(in_port_t);
-    break;
-  case SN_ATYP_DOMAINNAME :
-    size = sizeof(uint8_t) + sizeof(uint8_t) + sn_sock->address.domain_name.strlen + \
-      sizeof(in_port_t);
-    break;
-  }
-
-  return size;
-}
-
-in_port_t sn_socket_getport(sn_socket* sn_sock) {
-  SN_ASSERT(sn_sock != NULL);
-
-  int offset = sizeof(uint8_t);
-
-  switch ( sn_sock->atyp ) {
-  case SN_ATYP_IPV6 :
-    offset += sizeof(struct in6_addr);
-    break;
-  case SN_ATYP_IPV4 :
-    offset += sizeof(struct in_addr);
-    break;
-  case SN_ATYP_DOMAINNAME :
-    offset += sizeof(uint8_t) + sn_sock->address.domain_name.strlen;
-    break;
-  }
-
-  return *(in_port_t *)((uint8_t*)sn_sock + offset);
-}
+int sn_socket_sizeof(const sn_socket* sn_sock);
+in_port_t sn_socket_getport(sn_socket* sn_sock);
 
 #define SN_SOCKET_SIZEOF(sock) sn_socket_sizeof(sock)
 #define SN_SOCKET_GETADDRESSTYPE(sock) ( (sock)->atyp )
@@ -103,10 +65,16 @@ typedef struct SN_PACKED _sn_request_msg {
   uint8_t ver;
   uint8_t cmd;
   uint8_t rsv;
-  uint8_t atyp;
-  uint8_t dst_addr;
-  uint8_t dst_port;
+  sn_socket socket;
 } sn_request_msg;
+
+typedef sn_request_msg sn_reply_msg;
+
+typedef struct SN_PACKED _sn_params {
+  int listening_socks_port; // -p port
+} sn_params;
+
+#define DEFAULT_LISTENING_SOCKS_PORT 1080
 
 
 #endif /* SOCKSNUG_H */
