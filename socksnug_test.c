@@ -15,9 +15,15 @@ sn_unit_test unit_tests_sn_socket[] = {
   { NULL, NULL }
 };
 
+sn_unit_test unit_tests_parse_parameters[] = {
+  { .unit_test_name = "test de la fonction parse_parameters", .unit_test_func = test_parse_parameters },
+  { NULL, NULL }
+};
+
 sn_tests_suite all_tests_suites[] = {
   { "Suite de tests de sn_socket", init_suite_sn_socket, clean_suite_sn_socket,
     unit_tests_sn_socket },
+  { "Suite de tests parse_parameters", NULL, NULL, unit_tests_parse_parameters },
   { NULL, NULL, NULL, NULL }
 };
 
@@ -38,6 +44,20 @@ void test_sn_socket_sizeof(void) {
 int clean_suite_sn_socket(void)
 {
     return 0;
+}
+
+void test_parse_parameters(void) {
+  sn_params* params;
+  char*      argv1[] = {"./socksnug", "-p", "80"};
+  char*      argv2[] = {"./socksnug", "-p", "+1"};
+
+  params = parse_parameters(3, argv1);
+  CU_ASSERT( params->listening_socks_port == 80 );
+  free(params);
+
+  params = parse_parameters(3, argv2);
+  CU_ASSERT( params->listening_socks_port == 1 );
+  free(params);
 }
 
 int main(int argc, char* argv[]) {
@@ -64,15 +84,16 @@ int main(int argc, char* argv[]) {
     /* add the tests to the suite */
     tmp_unit_test = tmp_tests_suite->suite_tests;
     while ( tmp_unit_test->unit_test_func != NULL ) {
+      printf(">>>> %s\n", tmp_unit_test->unit_test_name);
       if ( CU_add_test(pSuite, tmp_unit_test->unit_test_name, tmp_unit_test->unit_test_func) \
 	   == NULL ) {
 	CU_cleanup_registry();
 	return CU_get_error();
       }
-      tmp_unit_test += sizeof(sn_unit_test);
+      tmp_unit_test++;
     }
 
-    tmp_tests_suite += sizeof(sn_tests_suite);
+    tmp_tests_suite++;
   }
 
   /* Run all tests using the CUnit Basic interface */

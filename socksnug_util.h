@@ -13,4 +13,22 @@
 
 int is_unsigned_int(char *s);
 
+#define SN_EXIT_IF_TRUE(cond, s)		\
+  do {						\
+    if ( cond ) {				\
+      perror("perror");				\
+      fprintf(stderr, s "\n");			\
+      exit(EXIT_FAILURE);			\
+    }						\
+  } while ( 0 )
+
+#define SN_RETURN_IF_TRUE(cond, s, ret_value)	\
+  do {						\
+    if ( cond ) {				\
+      perror("perror");				\
+      fprintf(stderr, s "\n");			\
+      return (ret_value);			\
+    }						\
+  } while ( 0 )
+
 #endif /* SOCKSNUG_UTIL_H */

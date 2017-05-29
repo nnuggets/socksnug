@@ -18,5 +18,6 @@ typedef struct _sn_tests_suite {
 int init_suite_sn_socket(void);
 int clean_suite_sn_socket(void);
 void test_sn_socket_sizeof(void);
+void test_parse_parameters(void);
 
 #endif /* SOCKSNUG_TEST_H */
