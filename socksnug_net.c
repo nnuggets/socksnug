@@ -388,3 +388,29 @@ int sn_socks_connect(sn_socket* sn_sock, struct sockaddr_in* saddr_in, socklen_t
 
   return s;
 }
+
+int sn_write_all(int socket, char* buffer, int n) {
+  int already = 0;
+  int ret     = 0;
+
+  while ( already < n ) {
+    ret = write(socket, &buffer[already], n);
+    if ( ret == -1 ) {
+      perror("sn_write_all");
+      return -1;
+    }
+    already += ret;
+  }
+
+  return already;
+}
+
+int sn_close_socks(sn_socksclient* client) {
+  SN_ASSERT(client != NULL);
+
+  close(client->s);
+  if ( client->rs != - 1 )
+    close(client->rs);
+
+  return 0;
+}

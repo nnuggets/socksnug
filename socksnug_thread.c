@@ -12,7 +12,7 @@ pthread_t* launch_connection_thread(int s) {
   pthread_t* t   = NULL;
   int        ret = 0;
 
-  t = malloc(sizeof(pthread_t));
+  t = calloc(1, sizeof(pthread_t));
   SN_EXIT_IF_TRUE(t == NULL, "launch_connection_thread: erreur d'allocation mémoire\n");
 
   ret = pthread_create(t, NULL, accept_connections, (void *)s);
@@ -25,7 +25,7 @@ pthread_t* launch_reading_thread() {
   pthread_t* t   = NULL;
   int        ret = 0;
 
-  t = malloc(sizeof(pthread_t));
+  t = calloc(1, sizeof(pthread_t));
   SN_EXIT_IF_TRUE(t == NULL, "launch_connection_thread: erreur d'allocation mémoire\n");
 
   ret = pthread_create(t, NULL, read_all_sockets, NULL);
@@ -109,7 +109,7 @@ void* service_thread(void* arg) {
   int n                       = (int)arg;
   sn_socksclient*    client   = NULL;
   sn_connection_msg* conn_msg = NULL;
-  int                already_passed = 0;
+
   i = n;
   while ( 1 ) {
     client = g_allclients->array[i].client;
@@ -127,7 +127,6 @@ void* service_thread(void* arg) {
       goto next_iter;
     }
 
-    int already = 0;
     int ret = 0;
     sn_method_selection_msg auth_sel_msg = { .ver = 0x05, .nmeths = 0x00 };
 
@@ -173,15 +172,12 @@ void* service_thread(void* arg) {
     case SN_SOCKS_UNAUTH :
       switch ( client->auth_method ) {
       case SN_METH_NOAUTH :
-	while ( already < 2 ) {
-	  ret = write(client->s, (char*)&auth_sel_msg + already, 2);
-	  if ( ret == -1 ) {
-	    perror("sn_meth_noauth");
-	    close(client->s);
-	    sn_del_client(g_allclients, &g_allclients->array[i]);
-	    break;
-	  }
-	  already += ret;
+
+	ret = sn_write_all(client->s, (char*)&auth_sel_msg, 2);
+	if ( ret == -1 ) {
+	  fprintf(stderr, "service_thread: erreur de sn_write_all");
+	  sn_close_socks(client);
+	  break;
 	}
 
 	client->state = SN_SOCKS_AUTHENTICATED;
@@ -245,9 +241,30 @@ void* service_thread(void* arg) {
 	int rs = sn_socks_connect(&msg->socket, &bind_addr_in,
 						   &bind_addr_len);
 	if ( rs == -1 ) {
+	  char* buf = calloc(10, sizeof(char));
+	  if ( buf == NULL ) {
+	    fprintf(stderr, "erreur d'allocation mémoire\n");
+	    break;
+	  }
+
+	  sn_reply_msg* reply_msg = (sn_reply_msg*) buf;
+
 	  fprintf(stderr, "service_thread: erreur de sn_socks_connect");
-	  close(client->s);
-	  sn_del_client(g_allclients, &g_allclients->array[i]);
+	  client->s_i += sn_request_msg_sizeof(msg);
+
+	  reply_msg->ver = 0x05;
+	  reply_msg->cmd = 0x05;
+	  reply_msg->rsv = 0x00;
+	  reply_msg->socket.atyp = 0x01;
+
+	  ret = sn_write_all(client->s, (char*)reply_msg, 10);
+	  if ( ret == -1 ) {
+	    fprintf(stderr, "service_thread: erreur de sn_write_all");
+	    break;
+	  }
+
+
+	  //sn_del_client(g_allclients, &g_allclients->array[i]);
 	  break;
 	}
 
@@ -259,7 +276,7 @@ void* service_thread(void* arg) {
 	  break;
 	}
 
-	sn_reply_msg* reply_msg = buf;
+	sn_reply_msg* reply_msg = (sn_reply_msg*) buf;
 
 	reply_msg->ver = 0x05;
 	reply_msg->cmd = 0x00;
@@ -269,20 +286,11 @@ void* service_thread(void* arg) {
 	memcpy((char*)&reply_msg->socket.address.ipv4_addr + sizeof(struct in_addr),
 	       &bind_addr_in.sin_port, sizeof(unsigned short));
 
-	int k = 0;
-	while ( k < 10 )
-	  printf("%d ", buf[k++]);
-
-	already = 0;
-	while ( already < 10 ) {
-	  ret = write(client->s, (char*)reply_msg + already, 10);
-	  if ( ret == -1 ) {
-	    perror("sn_meth_auth_write");
-	    close(client->s);
-	    sn_del_client(g_allclients, &g_allclients->array[i]);
-	    break;
-	  }
-	  already += ret;
+	ret = sn_write_all(client->s, (char*)reply_msg, 10);
+	if ( ret == -1 ) {
+	  fprintf(stderr, "service_thread: erreur de sn_write_all");
+	  sn_close_socks(client);
+	  break;
 	}
 
 	client->s_i += sn_request_msg_sizeof(msg);
@@ -299,39 +307,27 @@ void* service_thread(void* arg) {
       int av_bytes_s = are_there_enough_bytes_s(client, 1);
       printf("av_bytes_s: %d\n", av_bytes_s);
       if ( av_bytes_s != 0 ) {
-	already = 0;
-	while ( already < av_bytes_s ) {
-	  ret = write(client->rs, &client->s_buffer[client->s_i] + already, av_bytes_s);
-	  if ( ret == -1 ) {
-	    perror("sn_socks_relay");
-	    close(client->s);
-	    close(client->rs);
-	    sn_del_client(g_allclients, &g_allclients->array[i]);
-	    break;
-	  }
-	  already += ret;
+	ret = sn_write_all(client->rs, &client->s_buffer[client->s_i], av_bytes_s);
+	if ( ret == -1 ) {
+	  fprintf(stderr, "service_thread: erreur de sn_write_all");
+	  sn_close_socks(client);
+	  break;
 	}
 
-	client->s_i += already;
+	client->s_i += ret;
       }
 
       int av_bytes_rs = are_there_enough_bytes_rs(client, 1);
       printf("av_bytes_rs: %d\n", av_bytes_rs);
       if ( av_bytes_rs != 0 ) {
-	already = 0;
-	while ( already < av_bytes_rs ) {
-	  ret = write(client->s, &client->rs_buffer[client->rs_i] + already, av_bytes_rs);
-	  if ( ret == -1 ) {
-	    perror("sn_socks_relay");
-	    close(client->s);
-	    close(client->rs);
-	    sn_del_client(g_allclients, &g_allclients->array[i]);
-	    break;
-	  }
-	  already += ret;
+	ret = sn_write_all(client->s, &client->rs_buffer[client->rs_i], av_bytes_rs);
+	if ( ret == -1 ) {
+	  fprintf(stderr, "service_thread: erreur de sn_write_all");
+	  sn_close_socks(client);
+	  break;
 	}
 
-	client->rs_i += already;
+	client->rs_i += ret;
       }
 
       break;
@@ -359,7 +355,7 @@ pthread_t* launch_services_thread() {
   int i = 0;
 
   for ( i = 0; i < g_params->nthreads; i++ ) {
-    t = malloc(sizeof(pthread_t));
+    t = calloc(1, sizeof(pthread_t));
     if ( t == NULL ) {
       fprintf(stderr, "Erreur d'allocation mémoire\n");
       return NULL;
