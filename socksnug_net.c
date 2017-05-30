@@ -69,10 +69,11 @@ void* read_all_sockets(void* args) {
      */
     max = 0;
     tv.tv_sec = 0;
-    tv.tv_usec = 1000 * 10; // 10 milliseconds
+    tv.tv_usec = 100; // 0.1 milliseconds
 
     /* List of sockets to listen
      */
+    //printf("liste sockets: \n");
     for ( i = 0; i < g_allclients->array_size; i++ ) {
       ret = pthread_mutex_trylock(&g_allclients->array[i].mutex);
       if ( ret !=  0 )
@@ -87,8 +88,11 @@ void* read_all_sockets(void* args) {
       /* Listen on s and rs
        */
       FD_SET(client->s, &readfs);
-      if ( client->rs != -1 )
+      //printf("%d ", client->s);
+      if ( client->rs != -1 ) {
 	FD_SET(client->rs, &readfs);
+	//printf("%d ", client->rs);
+      }
 
       /* Max descriptor
        */
@@ -101,14 +105,20 @@ void* read_all_sockets(void* args) {
       pthread_mutex_unlock(&g_allclients->array[i].mutex);
     }
 
+    //printf("\n");
     /* Listen to sockets */
     if ( (ret = select(max + 1, &readfs, NULL, NULL, &tv)) < 0 ) {
       perror("select");
+
+      if ( errno == EBADF ) {
+	continue;
+      }
       exit(errno);
     }
 
-    if ( ret <= 0 )
+    if ( ret <= 0 ) {
       continue;
+    }
 
     /* Sockets in read state*/
     for ( i = 0; i < g_allclients->array_size; i++ ) {

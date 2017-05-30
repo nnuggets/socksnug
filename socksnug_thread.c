@@ -111,6 +111,7 @@ void* service_thread(void* arg) {
   sn_connection_msg* conn_msg = NULL;
 
   i = n;
+
   while ( 1 ) {
     client = g_allclients->array[i].client;
     /* if ( i == 127 )
@@ -149,15 +150,16 @@ void* service_thread(void* arg) {
 	int j = 0;
 	int prefered_auth = -1;
 	for ( j = 0; j < conn_msg->nmeths; j++ ) {
-	  if ( is_supported_auth(conn_msg->meths[i]) ) {
-	    if ( is_prefered_auth(prefered_auth, conn_msg->meths[i]) ) {
-	      prefered_auth = conn_msg->meths[i];
+	  printf("meth: %d\n", conn_msg->meths[j]);
+	  if ( is_supported_auth(conn_msg->meths[j]) ) {
+	    if ( is_prefered_auth(prefered_auth, conn_msg->meths[j]) ) {
+	      prefered_auth = conn_msg->meths[j];
 	    }
 	  }
 	}
 
 	if ( prefered_auth == -1 ) {
-	  fprintf(stderr, "Méthodes d'authentifications proposées non gérées !\n");
+	  fprintf(stderr, "Méthodes d'authentification proposées non gérées !\n");
 	  close(client->s);
 	  sn_del_client(g_allclients, &g_allclients->array[i]);
 	  break;
@@ -305,7 +307,6 @@ void* service_thread(void* arg) {
       printf("sn_socks_relay\n");
 
       int av_bytes_s = are_there_enough_bytes_s(client, 1);
-      printf("av_bytes_s: %d\n", av_bytes_s);
       if ( av_bytes_s != 0 ) {
 	ret = sn_write_all(client->rs, &client->s_buffer[client->s_i], av_bytes_s);
 	if ( ret == -1 ) {
@@ -318,12 +319,12 @@ void* service_thread(void* arg) {
       }
 
       int av_bytes_rs = are_there_enough_bytes_rs(client, 1);
-      printf("av_bytes_rs: %d\n", av_bytes_rs);
       if ( av_bytes_rs != 0 ) {
 	ret = sn_write_all(client->s, &client->rs_buffer[client->rs_i], av_bytes_rs);
 	if ( ret == -1 ) {
 	  fprintf(stderr, "service_thread: erreur de sn_write_all");
 	  sn_close_socks(client);
+
 	  break;
 	}
 

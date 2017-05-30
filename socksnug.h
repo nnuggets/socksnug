@@ -113,7 +113,7 @@ enum sn_socksclient_state {
   SN_SOCKS_RELAY,
 };
 
-#define SN_BUFFER_SIZE 1024
+#define SN_BUFFER_SIZE 8192
 
 typedef struct sn_socksclient {
   int    s;                               // socket resulted from the accept syscall
