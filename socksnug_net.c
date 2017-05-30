@@ -55,7 +55,7 @@ void* read_all_sockets(void* args) {
   int             i       = 0;
   int             ret     = 0;
   int             max     = -1;
-  fd_set          readfs;
+  fd_set          readfs, exceptfs;
   struct timeval  tv      = { 0 };
   sn_socksclient* client  = NULL;
 
@@ -65,6 +65,8 @@ void* read_all_sockets(void* args) {
     /* reset the set of sockets to read
      */
     FD_ZERO(&readfs);
+    FD_ZERO(&exceptfs);
+
     /* reset the timeout
      */
     max = 0;
@@ -87,11 +89,17 @@ void* read_all_sockets(void* args) {
 
       /* Listen on s and rs
        */
-      FD_SET(client->s, &readfs);
-      //printf("%d ", client->s);
+      if ( client->s != -1 ) {
+	FD_SET(client->s, &readfs);
+	FD_SET(client->s, &exceptfs);
+	/*printf("%d - ", client->s);
+	  printf("%d - ", client->rs);*/
+      }
+
       if ( client->rs != -1 ) {
 	FD_SET(client->rs, &readfs);
-	//printf("%d ", client->rs);
+	FD_SET(client->rs, &exceptfs);
+	//printf("%d - ", client->rs);
       }
 
       /* Max descriptor
@@ -104,15 +112,29 @@ void* read_all_sockets(void* args) {
 
       pthread_mutex_unlock(&g_allclients->array[i].mutex);
     }
-
     //printf("\n");
-    /* Listen to sockets */
-    if ( (ret = select(max + 1, &readfs, NULL, NULL, &tv)) < 0 ) {
-      perror("select");
+    /* Listen to sockets
+    if ( (ret = select(max + 1, &readfs, NULL, &exceptfs, &tv)) < 0 ) {
+      perror("select exceptfs");
 
       if ( errno == EBADF ) {
 	continue;
       }
+      exit(errno);
+    }
+
+    if ( ret > 0 ) {
+      printf("il y a des exceptions\n");
+    }*/
+
+    tv.tv_sec = 0;
+    tv.tv_usec = 1000; // 1 millisecond
+
+    /* Listen to sockets */
+    if ( (ret = select(max + 1, &readfs, NULL, NULL, &tv)) < 0 ) {
+      /*printf(" select ret : %d\n", ret);*/
+      printf("max: %d\n", max);
+      perror("select");
       exit(errno);
     }
 
@@ -141,7 +163,8 @@ void* read_all_sockets(void* args) {
 	/* Test if the socket is closed */
 	ioctl(client->s, FIONREAD, &n);
 	if ( n == 0 ) {
-	  client->state = SN_TCP_CLOSED;
+	  close(client->s);
+	  client->s = -1;
 	  ret = pthread_mutex_unlock(&g_allclients->array[i].mutex);
 	  SN_EXIT_IF_TRUE(ret != 0, "reading_thread: erreur de pthread_mutex_unlock");
 	  continue;
@@ -172,7 +195,6 @@ void* read_all_sockets(void* args) {
 	  /* Test if the socket is closed */
 	  ioctl(client->rs, FIONREAD, &n);
 	  if ( n == 0 ) {
-	    close(client->s);
 	    close(client->rs);
 	    client->rs = -1;
 	    ret = pthread_mutex_unlock(&g_allclients->array[i].mutex);
@@ -417,7 +439,7 @@ int sn_write_all(int socket, char* buffer, int n) {
 
 int sn_close_socks(sn_socksclient* client) {
   SN_ASSERT(client != NULL);
-
+  printf(">>>>>>>>>>>>>\n");
   close(client->s);
   if ( client->rs != - 1 )
     close(client->rs);

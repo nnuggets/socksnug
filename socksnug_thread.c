@@ -177,7 +177,7 @@ void* service_thread(void* arg) {
 
 	ret = sn_write_all(client->s, (char*)&auth_sel_msg, 2);
 	if ( ret == -1 ) {
-	  fprintf(stderr, "service_thread: erreur de sn_write_all");
+	  fprintf(stderr, "service_thread: erreur de sn_write_all 1");
 	  sn_close_socks(client);
 	  break;
 	}
@@ -261,12 +261,12 @@ void* service_thread(void* arg) {
 
 	  ret = sn_write_all(client->s, (char*)reply_msg, 10);
 	  if ( ret == -1 ) {
-	    fprintf(stderr, "service_thread: erreur de sn_write_all");
+	    fprintf(stderr, "service_thread: erreur de sn_write_all 2");
 	    break;
 	  }
 
-
-	  //sn_del_client(g_allclients, &g_allclients->array[i]);
+	  close(client->s);
+	  sn_del_client(g_allclients, &g_allclients->array[i]);
 	  break;
 	}
 
@@ -290,7 +290,7 @@ void* service_thread(void* arg) {
 
 	ret = sn_write_all(client->s, (char*)reply_msg, 10);
 	if ( ret == -1 ) {
-	  fprintf(stderr, "service_thread: erreur de sn_write_all");
+	  fprintf(stderr, "service_thread: erreur de sn_write_all 3");
 	  sn_close_socks(client);
 	  break;
 	}
@@ -304,13 +304,14 @@ void* service_thread(void* arg) {
       break;
 
     case SN_SOCKS_RELAY:
-      printf("sn_socks_relay\n");
+      //printf("sn_socks_relay %d %d\n", client->s, client->rs);
+      while(0);
 
       int av_bytes_s = are_there_enough_bytes_s(client, 1);
-      if ( av_bytes_s != 0 ) {
+      if ( av_bytes_s != 0 && client->rs != -1 ) {
 	ret = sn_write_all(client->rs, &client->s_buffer[client->s_i], av_bytes_s);
 	if ( ret == -1 ) {
-	  fprintf(stderr, "service_thread: erreur de sn_write_all");
+	  fprintf(stderr, "service_thread: erreur de sn_write_all 4");
 	  sn_close_socks(client);
 	  break;
 	}
@@ -319,10 +320,10 @@ void* service_thread(void* arg) {
       }
 
       int av_bytes_rs = are_there_enough_bytes_rs(client, 1);
-      if ( av_bytes_rs != 0 ) {
+      if ( av_bytes_rs != 0 && client->s != -1 ) {
 	ret = sn_write_all(client->s, &client->rs_buffer[client->rs_i], av_bytes_rs);
 	if ( ret == -1 ) {
-	  fprintf(stderr, "service_thread: erreur de sn_write_all");
+	  fprintf(stderr, "service_thread: erreur de sn_write_all 5");
 	  sn_close_socks(client);
 
 	  break;
@@ -330,6 +331,15 @@ void* service_thread(void* arg) {
 
 	client->rs_i += ret;
       }
+
+      if ( client->s == -1 ) {
+	close(client->rs);
+	sn_del_client(g_allclients, &g_allclients->array[i]);
+      } else if ( client->rs == -1 ) {
+	close(client->s);
+	sn_del_client(g_allclients, &g_allclients->array[i]);
+      }
+
 
       break;
 
@@ -343,7 +353,7 @@ void* service_thread(void* arg) {
     if ( i >= g_allclients->array_size )
       i = n;
 
-    usleep(100);
+    usleep(1000);
   }
 
   return NULL;
