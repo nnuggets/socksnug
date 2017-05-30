@@ -65,7 +65,6 @@ void* read_all_sockets(void* args) {
     /* reset the set of sockets to read
      */
     FD_ZERO(&readfs);
-    FD_ZERO(&exceptfs);
 
     /* reset the timeout
      */
@@ -91,15 +90,10 @@ void* read_all_sockets(void* args) {
        */
       if ( client->s != -1 ) {
 	FD_SET(client->s, &readfs);
-	FD_SET(client->s, &exceptfs);
-	/*printf("%d - ", client->s);
-	  printf("%d - ", client->rs);*/
       }
 
       if ( client->rs != -1 ) {
 	FD_SET(client->rs, &readfs);
-	FD_SET(client->rs, &exceptfs);
-	//printf("%d - ", client->rs);
       }
 
       /* Max descriptor
@@ -112,20 +106,6 @@ void* read_all_sockets(void* args) {
 
       pthread_mutex_unlock(&g_allclients->array[i].mutex);
     }
-    //printf("\n");
-    /* Listen to sockets
-    if ( (ret = select(max + 1, &readfs, NULL, &exceptfs, &tv)) < 0 ) {
-      perror("select exceptfs");
-
-      if ( errno == EBADF ) {
-	continue;
-      }
-      exit(errno);
-    }
-
-    if ( ret > 0 ) {
-      printf("il y a des exceptions\n");
-    }*/
 
     tv.tv_sec = 0;
     tv.tv_usec = 1000; // 1 millisecond
