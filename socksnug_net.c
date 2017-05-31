@@ -19,6 +19,7 @@
 
 #include "socksnug.h"
 #include "socksnug_util.h"
+#include "socksnug_thread.h"
 #include "socksnug_net.h"
 
 /* Create a socket that listen on a given port
@@ -55,11 +56,13 @@ void* read_all_sockets(void* args) {
   int             i       = 0;
   int             ret     = 0;
   int             max     = -1;
-  fd_set          readfs, exceptfs;
+  fd_set          readfs;
   struct timeval  tv      = { 0 };
   sn_socksclient* client  = NULL;
 
-  SN_ASSERT (g_allclients != NULL);
+  sn_read_thread_params* params   =  args;
+  SN_ASSERT( params != NULL );
+  sn_all_clients* g_allclients = params->g_allclients;
 
   while ( 1 ) {
     /* reset the set of sockets to read
@@ -104,7 +107,8 @@ void* read_all_sockets(void* args) {
       if ( client->rs > max )
 	max = client->rs;
 
-      pthread_mutex_unlock(&g_allclients->array[i].mutex);
+      ret = pthread_mutex_unlock(&g_allclients->array[i].mutex);
+      SN_EXIT_IF_TRUE(ret != 0, "reading_thread: erreur de pthread_mutex_unlock");
     }
 
     tv.tv_sec = 0;
@@ -115,6 +119,12 @@ void* read_all_sockets(void* args) {
       /*printf(" select ret : %d\n", ret);*/
       printf("max: %d\n", max);
       perror("select");
+
+      if ( errno == EBADF ) {
+	ret = pthread_mutex_unlock(&g_allclients->array[i].mutex);
+	SN_EXIT_IF_TRUE(ret != 0, "reading_thread: erreur de pthread_mutex_unlock");
+	continue;
+      }
       exit(errno);
     }
 
@@ -209,11 +219,15 @@ void* read_all_sockets(void* args) {
  * Add this new client object to the global all_clients object
  */
 void* accept_connections(void* arg) {
-  int                s          = (int) arg;
   int                client_s   = 0;
   unsigned int       addrin_len = sizeof(struct sockaddr_in);
   struct sockaddr_in addrin     = { 0 };
   sn_socksclient*    sn_client  = NULL;
+
+  sn_connect_thread_params* params   =  arg;
+  SN_ASSERT( params != NULL );
+  sn_all_clients* g_allclients = params->g_allclients;
+  int             s            = params->s;
 
   while( (client_s = accept4(s, (struct sockaddr*)&addrin, &addrin_len, SOCK_NONBLOCK)) ) {
     sn_client = sn_new_socksclient();

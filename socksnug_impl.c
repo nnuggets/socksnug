@@ -11,8 +11,6 @@
  * g_allclients: all clients of the socks proxy
  * g_params: command line arguments
  */
-sn_all_clients*  g_allclients       = NULL;
-sn_params*       g_params           = NULL;
 
 /* Get the port number of a sn_socket structure
  */

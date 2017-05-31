@@ -5,12 +5,27 @@
 
 extern pthread_mutex_t mutex_allclients;
 
-pthread_t* launch_services_thread();
+typedef struct _sn_services_thread_params {
+  int             n;
+  sn_all_clients* g_allclients;
+  sn_params*      g_params;
+} sn_services_thread_params;
 
-pthread_t* launch_connection_thread(int s);
+pthread_t* launch_services_thread(sn_all_clients* g_allclients, sn_params* g_params);
 
-pthread_t* launch_reading_thread();
+typedef struct _sn_connect_thread_params {
+  int             s;
+  sn_all_clients* g_allclients;
+  sn_params*      g_params;
+} sn_connect_thread_params;
 
-int associate_a_service_thread(int s);
+pthread_t* launch_connection_thread(int s, sn_all_clients* g_allclients, sn_params* g_params);
+
+typedef struct _sn_read_thread_params {
+  sn_all_clients* g_allclients;
+  sn_params*      g_params;
+} sn_read_thread_params;
+
+pthread_t* launch_reading_thread(sn_all_clients* g_allclients, sn_params* g_params);
 
 #endif /* SOCKSNUG_THREAD_H */

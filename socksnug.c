@@ -10,8 +10,10 @@
 #include "socksnug_thread.h"
 
 int main(int argc, char* argv[]) {
-  pthread_t* connection_thread = NULL;
-  pthread_t* reading_thread    = NULL;
+  pthread_t*      connection_thread = NULL;
+  pthread_t*      reading_thread    = NULL;
+  sn_params*      g_params          = NULL;
+  sn_all_clients* g_allclients      = NULL;
 
   /* Parsing on console parameters
    */
@@ -35,12 +37,14 @@ int main(int argc, char* argv[]) {
    * reading thread    : read from the sockets of all clients and fill the buffers
    * services thread   : state machine dynamic
    */
-  connection_thread = launch_connection_thread(s);
-  reading_thread = launch_reading_thread();
-  launch_services_thread();
+  connection_thread = launch_connection_thread(s, g_allclients, g_params);
+  reading_thread = launch_reading_thread(g_allclients, g_params);
+  launch_services_thread(g_allclients, g_params);
 
   pthread_join(*connection_thread, NULL);
 
   free(g_params);
+  free(g_allclients);
+
   return 0;
 }

@@ -98,7 +98,6 @@ typedef struct SN_PACKED _sn_params {
 #define DEFAULT_LISTENING_SOCKS_PORT 1080
 #define DEFAULT_NUMBER_OF_THREADS 10
 
-extern sn_params* g_params;
 sn_params* parse_parameters(int argc, char* argv[]);
 void print_parameters(sn_params *params);
 
@@ -167,8 +166,6 @@ typedef struct _sn_all_clients {
   sn_int_list*         freelist;               // linked list of free slot in the array
   pthread_mutex_t      freelist_mutex;
 } sn_all_clients;
-
-extern sn_all_clients* g_allclients;
 
 sn_all_clients* sn_new_all_clients_array();
 sn_socksclient* sn_new_socksclient();

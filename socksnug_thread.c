@@ -8,27 +8,42 @@
 #include "socksnug_thread.h"
 #include "socksnug_net.h"
 
-pthread_t* launch_connection_thread(int s) {
-  pthread_t* t   = NULL;
-  int        ret = 0;
+pthread_t* launch_connection_thread(int s, sn_all_clients* g_allclients, sn_params* g_params) {
+  int                       ret = 0;
+  pthread_t*                t   = NULL;
+  sn_connect_thread_params* p = NULL;
 
   t = calloc(1, sizeof(pthread_t));
   SN_EXIT_IF_TRUE(t == NULL, "launch_connection_thread: erreur d'allocation mémoire\n");
 
-  ret = pthread_create(t, NULL, accept_connections, (void *)s);
+  p = calloc(1, sizeof(sn_connect_thread_params));
+  SN_EXIT_IF_TRUE(p == NULL, "launch_connection_thread: erreur d'allocation mémoire\n");
+
+  p->s = s;
+  p->g_allclients = g_allclients;
+  p->g_params = g_params;
+
+  ret = pthread_create(t, NULL, accept_connections, p);
   SN_EXIT_IF_TRUE(ret != 0, "Erreur lors de la création d'un thread de lancement !\n");
 
   return t;
 }
 
-pthread_t* launch_reading_thread() {
-  pthread_t* t   = NULL;
-  int        ret = 0;
+pthread_t* launch_reading_thread(sn_all_clients* g_allclients, sn_params* g_params) {
+  int                    ret = 0;
+  pthread_t*             t   = NULL;
+  sn_read_thread_params* p   = NULL;
 
   t = calloc(1, sizeof(pthread_t));
   SN_EXIT_IF_TRUE(t == NULL, "launch_connection_thread: erreur d'allocation mémoire\n");
 
-  ret = pthread_create(t, NULL, read_all_sockets, NULL);
+  p = calloc(1, sizeof(sn_read_thread_params));
+  SN_EXIT_IF_TRUE(p == NULL, "launch_connection_thread: erreur d'allocation mémoire\n");
+
+  p->g_allclients = g_allclients;
+  p->g_params = g_params;
+
+  ret = pthread_create(t, NULL, read_all_sockets, p);
   SN_EXIT_IF_TRUE(ret != 0, "Erreur lors de la création d'un thread de lancement !\n");
 
   return t;
@@ -105,10 +120,16 @@ int are_there_enough_bytes_rs(sn_socksclient* client, int needed_bytes) {
 }
 
 void* service_thread(void* arg) {
-  int                i        = 0;
-  int n                       = (int)arg;
-  sn_socksclient*    client   = NULL;
-  sn_connection_msg* conn_msg = NULL;
+  int                        i        = 0;
+  sn_socksclient*            client   = NULL;
+  sn_connection_msg*         conn_msg = NULL;
+  sn_services_thread_params* params   = arg;
+
+  SN_ASSERT( params != NULL );
+
+  sn_all_clients* g_allclients = params->g_allclients;
+  sn_params*      g_params     = params->g_params;
+  int             n            = params->n;
 
   i = n;
 
@@ -199,8 +220,6 @@ void* service_thread(void* arg) {
       socklen_t          bind_addr_len = sizeof(struct sockaddr_in);
       sn_request_msg*    msg           = (sn_request_msg*)&(client->s_buffer[client->s_i]);
       struct sockaddr_in bind_addr_in;
-
-      printf("sn_socks_authenticated\n");
 
       if ( are_there_enough_bytes_s(client, 6) &&
 	       are_there_enough_bytes_s(client, sn_request_msg_sizeof(msg)) ) {
@@ -359,24 +378,27 @@ void* service_thread(void* arg) {
   return NULL;
 }
 
-pthread_t* launch_services_thread() {
-  pthread_t* t   = NULL;
-  int        ret = 0;
+pthread_t* launch_services_thread(sn_all_clients* g_allclients, sn_params* g_params) {
+  pthread_t*                 t   = NULL;
+  int                        ret = 0;
+  sn_services_thread_params* p   = NULL;
+
 
   int i = 0;
 
   for ( i = 0; i < g_params->nthreads; i++ ) {
     t = calloc(1, sizeof(pthread_t));
-    if ( t == NULL ) {
-      fprintf(stderr, "Erreur d'allocation mémoire\n");
-      return NULL;
-    }
+    SN_EXIT_IF_TRUE(t == NULL, "launch_services_thread: erreur d'allocation mémoire\n");
 
-    ret = pthread_create(t, NULL, service_thread, (void *)i);
-    if ( ret != 0 ) {
-      fprintf(stderr, "Erreur lors de la création d'un thread de lancement !\n");
-      return NULL;
-    }
+    p = calloc(1, sizeof(sn_services_thread_params));
+    SN_EXIT_IF_TRUE(p == NULL, "launch_services_thread: erreur d'allocation mémoire\n");
+
+    p->g_allclients = g_allclients;
+    p->g_params = g_params;
+    p->n = i;
+
+    ret = pthread_create(t, NULL, service_thread, p);
+    SN_EXIT_IF_TRUE(ret != 0, "launch_services_thread: erreur lors de la création d'un thread de lancement !\n");
   }
 
   return t;
