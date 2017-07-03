@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
   sn_params*      g_params          = NULL;
   sn_all_clients* g_allclients      = NULL;
 
-  /* Parsing on console parameters
+  /* Parsing console parameters
    */
   g_params = parse_parameters(argc, argv);
   SN_EXIT_IF_TRUE(g_params == NULL, "main: erreur en sortie de parse_parameters");

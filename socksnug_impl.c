@@ -7,9 +7,10 @@
 #include "socksnug_util.h"
 #include "socksnug_thread.h"
 
-/* Global variables
- * g_allclients: all clients of the socks proxy
- * g_params: command line arguments
+/* Global variables :
+ *
+ * g_allclients : all clients of the socks proxy
+ * g_params     : command line arguments
  */
 
 /* Get the port number of a sn_socket structure
@@ -79,16 +80,40 @@ sn_params* parse_parameters(int argc, char* argv[]) {
   if ( argc == 1 )
     return params;
 
-  for (i = 1; i < argc; i++ ) {
+  for ( i = 1; i < argc; i++ ) {
+
     if ( strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "--listening-socks-port") == 0 ) {
+      if ( i + 1 >= argc ) {
+	fprintf(stderr, "Missing port number argument !\n");
+	exit(EXIT_FAILURE);
+      }
+
       value = argv[++i];
       if ( is_unsigned_int(value) ) {
 	params->listening_socks_port = atoi(value);
-      } else {
-	fprintf(stderr, "Invalid port number !\n");
+      }
+      else {
+ 	fprintf(stderr, "Invalid port number !\n");
 	exit(EXIT_FAILURE);
       }
     }
+
+    else if ( strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--threads") == 0 ) {
+      if ( i + 1 >= argc ) {
+	fprintf(stderr, "Missing threads number argument !\n");
+	exit(EXIT_FAILURE);
+      }
+
+      value = argv[++i];
+      if ( is_unsigned_int(value) ) {
+	params->nthreads = atoi(value);
+      }
+      else {
+	fprintf(stderr, "Invalid thread number !\n");
+	exit(EXIT_FAILURE);
+      }
+    }
+
   }
 
   return params;
@@ -143,8 +168,9 @@ int sn_get_freeslot(sn_all_clients* sac) {
   ret = pthread_mutex_lock(&sac->freelist_mutex);
   SN_EXIT_IF_TRUE(ret != 0, "sn_get_freeslot: erreur de pthread_mutex_lock");
 
-  if ( sac->freelist == NULL )
+  if ( sac->freelist == NULL ) {
     ret_value = -1;
+  }
   else {
     ret_value = sac->freelist->n;
     sac->freelist = sac->freelist->next;
