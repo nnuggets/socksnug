@@ -1,3 +1,3 @@
 # socksnug
 
-**Socksnug** is a little multithreaded socks5 proxy
+**socksnug** is a little multithreaded socks5 proxy
