@@ -19,7 +19,7 @@ typedef struct _sn_connect_thread_params {
   sn_params*      g_params;
 } sn_connect_thread_params;
 
-pthread_t* launch_connection_thread(int s, sn_all_clients* g_allclients, sn_params* g_params);
+pthread_t* launch_clients_connection_thread(int s, sn_all_clients* g_allclients, sn_params* g_params);
 
 typedef struct _sn_read_thread_params {
   sn_all_clients* g_allclients;

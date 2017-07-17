@@ -14,6 +14,7 @@ int main(int argc, char* argv[]) {
   pthread_t*      reading_thread    = NULL;
   sn_params*      g_params          = NULL;
   sn_all_clients* g_allclients      = NULL;
+  sn_all_proxies* g_allproxies      = NULL;
 
   /* Parsing console parameters
    */
@@ -21,24 +22,41 @@ int main(int argc, char* argv[]) {
   SN_EXIT_IF_TRUE(g_params == NULL, "main: erreur en sortie de parse_parameters");
   print_parameters(g_params);
 
-  /* Listen on the default port or the port given in parameters
+  /* Listen on the socks server ports
    */
-  int s = listen_on_port(g_params->listening_socks_port);
-  printf("socket: %d\n", s);
+  int servers_listen_sock = -1;
+  if ( g_params->listening_proxy_port != 0 ) {
+    servers_listen_sock = listen_on_port(g_params->listening_proxy_port);
+
+    /* Launch remote proxies management threads
+     */
+    g_allproxies = sn_new_all_proxies_array();
+    launch_proxies_connection_thread(servers_listen_sock, g_allproxies, g_params);
+  }
+
+  /* Listen on the socks clients port
+   */
+  int clients_listen_sock = listen_on_port(g_params->listening_socks_port);
 
   /* Create the global "sn_all_clients" structure
    */
   g_allclients = sn_new_all_clients_array();
   SN_EXIT_IF_TRUE(g_allclients == NULL, "main: erreur en sortie de sn_new_all_parameters");
 
-  /* Launch all threads :
-   * connection thread : accept connections, create a new client, and add this client
-   *                     to the global client structure
-   * reading thread    : read from the sockets of all clients and fill the buffers
-   * services thread   : state machine dynamic
+  /* Launch all clients management threads
    */
-  connection_thread = launch_connection_thread(s, g_allclients, g_params);
+
+  /* connection thread : accept client connections, create a new socksclient 
+   * per connection, and add this client to the global client structure
+   */
+  connection_thread = launch_clients_connection_thread(clients_listen_sock, g_allclients, g_params);
+
+  /* reading thread    : read from the sockets of all clients and fill the buffers
+   */
   reading_thread = launch_reading_thread(g_allclients, g_params);
+
+  /* services thread   : state machine dynamic
+   */
   launch_services_thread(g_allclients, g_params);
 
   pthread_join(*connection_thread, NULL);

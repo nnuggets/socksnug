@@ -64,7 +64,9 @@ unsigned int sn_request_msg_sizeof(sn_request_msg* msg) {
   return (sizeof(uint8_t)*3 + sn_socket_sizeof(&msg->socket));
 }
 
-/* Function to parse command line arguments
+/* Function parsing command line arguments
+ * @param argc : number of arguments
+ * @param argv : array of strings
  */
 sn_params* parse_parameters(int argc, char* argv[]) {
   sn_params* params = calloc(1, sizeof(sn_params));
@@ -74,7 +76,10 @@ sn_params* parse_parameters(int argc, char* argv[]) {
   SN_ASSERT( argc > 0 );
   SN_ASSERT( params != NULL );
 
+  /* Affect default values to param
+   */
   params->listening_socks_port = DEFAULT_LISTENING_SOCKS_PORT;
+  params->listening_proxy_port = DEFAULT_LISTENING_PROXY_PORT;
   params->nthreads = DEFAULT_NUMBER_OF_THREADS;
 
   if ( argc == 1 )
@@ -82,7 +87,7 @@ sn_params* parse_parameters(int argc, char* argv[]) {
 
   for ( i = 1; i < argc; i++ ) {
 
-    if ( strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "--listening-socks-port") == 0 ) {
+    if ( strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "--listening-socksclient-port") == 0 ) {
       if ( i + 1 >= argc ) {
 	fprintf(stderr, "Missing port number argument !\n");
 	exit(EXIT_FAILURE);
@@ -93,7 +98,23 @@ sn_params* parse_parameters(int argc, char* argv[]) {
 	params->listening_socks_port = atoi(value);
       }
       else {
- 	fprintf(stderr, "Invalid port number !\n");
+ 	fprintf(stderr, "Invalid integer for the port number !\n");
+	exit(EXIT_FAILURE);
+      }
+    }
+
+    else if ( strcmp(argv[i], "-P") == 0 || strcmp(argv[i], "--listening-socksserver-port") == 0 ) {
+      if ( i + 1 >= argc ) {
+	fprintf(stderr, "Missing port number argument !\n");
+	exit(EXIT_FAILURE);
+      }
+
+      value = argv[++i];
+      if ( is_unsigned_int(value) ) {
+	params->listening_proxy_port = atoi(value);
+      }
+      else {
+ 	fprintf(stderr, "Invalid integer for the port number !\n");
 	exit(EXIT_FAILURE);
       }
     }
@@ -109,11 +130,10 @@ sn_params* parse_parameters(int argc, char* argv[]) {
 	params->nthreads = atoi(value);
       }
       else {
-	fprintf(stderr, "Invalid thread number !\n");
+	fprintf(stderr, "Invalid integer for the number of threads !\n");
 	exit(EXIT_FAILURE);
       }
     }
-
   }
 
   return params;

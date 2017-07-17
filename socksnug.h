@@ -90,12 +90,15 @@ unsigned int sn_request_msg_sizeof(sn_request_msg* msg);
 /* Command line parameters
  */
 typedef struct SN_PACKED _sn_params {
-  int listening_socks_port; // -p port
+  int listening_socks_port; // -p port - Port which listen on socks clients
+  int listening_proxy_port; // -P port - Port which listen on connetions made by
+                            // distant proxies
   int nthreads;             // -t T
   int verbose;              // -v
 } sn_params;
 
 #define DEFAULT_LISTENING_SOCKS_PORT 1080
+#define DEFAULT_LISTENING_PROXY_PORT 0
 #define DEFAULT_NUMBER_OF_THREADS 10
 
 sn_params* parse_parameters(int argc, char* argv[]);
@@ -118,7 +121,7 @@ typedef struct sn_socksclient {
   int    s;                               // socket resulted from the accept syscall
   int    rs;                              // socket to the remote computer
 
-  struct sockaddr_in          s_addrin;   // remote address and oort of the client
+  struct sockaddr_in          s_addrin;   // remote address and port of the client
   struct sockaddr_in          rs_addrin;  // remote address and port of the remote computer
 
   enum   sn_socksclient_state state;      // state of the client in socks protocol
@@ -174,6 +177,57 @@ void sn_init_allclients_array();
 int sn_add_client(sn_all_clients* sal, sn_socksclient* client);
 int sn_del_client(sn_all_clients* sal, sn_all_clients_item* item);
 
+
+
+
+/* States of the inter socks server protocol
+ */
+enum sn_socksserver_state {
+  SN_SOCKSSERVER_TCP_OPENED = 0,
+  SN_SOCKSSERVER_TCP_CLOSED,
+  SN_SOCKSSERVER_UNAUTH,
+  SN_SOCKSSERVER_AUTHENTICATED,
+  SN_SOCKSSERVER_INSERVICE,
+};
+
+typedef struct sn_socksserver {
+  int    s;                               // socket resulted from the accept syscall
+  struct sockaddr_in          s_addrin;   // remote address and port of the proxy server
+
+  enum   sn_socksserver_state state;      // state of the client in socks protocol
+
+  char  *s_buffer;                        // buffer for read/write in s socket
+  unsigned int    s_buf_size;             // size of s_buffer
+  unsigned int    s_i;                    // read cursor in s_buffer
+  unsigned int    s_n;                    // number of bytes in the s buffer
+  pthread_mutex_t s_mutex;
+
+  int   auth_method;                      // authentication method
+} sn_socksserver;
+
+typedef struct _sn_all_proxies_item {
+  pthread_mutex_t mutex;
+  sn_socksserver* client;
+} sn_all_proxies_item;
+
+/* Structure to store all proxies and theirs states
+ */
+typedef struct _sn_all_proxies {
+  unsigned int         nproxies;               // number of clients
+  unsigned int         array_size;             // size (capacity) of the array
+  sn_all_proxies_item* array;
+  sn_int_list*         freelist;               // linked list of free slot in the array
+  pthread_mutex_t      freelist_mutex;
+} sn_all_proxies;
+
+sn_all_clients* sn_new_all_proxies_array();
+sn_socksclient* sn_new_socksproxy();
+
+void sn_init_allproxies_array();
+int sn_add_proxy(sn_all_proxies* sal, sn_socksproxy* client);
+int sn_del_proxy(sn_all_proxies* sal, sn_all_proxies_item* item);
+
 char* sn_socksclient_str(sn_socksclient* client);
+char* sn_socksproxy_str(sn_socksproxy* client);
 
 #endif /* SOCKSNUG_H */

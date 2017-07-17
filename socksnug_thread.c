@@ -8,7 +8,7 @@
 #include "socksnug_thread.h"
 #include "socksnug_net.h"
 
-pthread_t* launch_connection_thread(int s, sn_all_clients* g_allclients, sn_params* g_params) {
+pthread_t* launch_clients_connection_thread(int s, sn_all_clients* g_allclients, sn_params* g_params) {
   int                       ret = 0;
   pthread_t*                t   = NULL;
   sn_connect_thread_params* p = NULL;
